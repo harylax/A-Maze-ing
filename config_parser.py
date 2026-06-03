@@ -3,11 +3,26 @@ from typing import Any
 
 
 class ConfigError(Exception):
+    """Raised when the config file is missing,
+    malformed, or has invalid values."""
     pass
 
 
 class MazeConfig:
+    """Read and validate maze settings from a config file.
+
+    Attributes:
+        width: Number of columns in the maze.
+        height: Number of rows in the maze.
+        entry: (x, y) coordinates of the maze entry point.
+        exit_: (x, y) coordinates of the maze exit point.
+        output_file: Path where the maze will be saved.
+        perfect: If True, generate a perfect maze (no loops).
+        seed: Random seed for reproducibility. None means random.
+        algo: Generation algorithm, either 'DFS' or 'prim'.
+    """
     def __init__(self) -> None:
+        """Stores internally the config read."""
         self.width: int = 0
         self.height: int = 0
         self.entry: tuple[int, int] = (0, 0)
@@ -18,6 +33,11 @@ class MazeConfig:
         self.algo: str = 'DFS'
 
     def parse_config(self) -> None:
+        """Read the config file from argv and populate all attributes.
+
+        Raises:
+            ConfigError: If the file is missing or contains invalid data.
+        """
         if len(argv) < 2:
             raise ConfigError("Usage: python3 a_maze_ing.py <config_file>")
         content: str | None = None
@@ -43,6 +63,11 @@ class MazeConfig:
         self._validate_config()
 
     def _validate_config(self) -> None:
+        """Check that width, height, entry, and exit are consistent.
+
+        Raises:
+            ConfigError: If any value is out of range or entry == exit.
+        """
         if self.width < 2:
             raise ConfigError("WIDTH must be a positive value > 2.")
         if self.height < 2:
@@ -58,6 +83,17 @@ class MazeConfig:
 
     @staticmethod
     def _content_to_dict(content: str) -> dict[str, str]:
+        """Parse raw file text into a {KEY: value} string dictionary.
+
+        Args:
+            content: Full text of the config file.
+
+        Returns:
+            Dictionary of uppercased keys mapped to their raw string values.
+
+        Raises:
+            ConfigError: If a line is not in KEY=VALUE format.
+        """
         content = content.strip()
         if not content:
             raise ConfigError("The configuration file is empty.")
@@ -82,7 +118,18 @@ class MazeConfig:
 
     @staticmethod
     def _parse_dict(raw: dict[str, str]) -> dict[str, Any]:
+        """Convert the raw string dictionary into typed Python values.
 
+        Args:
+            raw: Dictionary of string keys and string values.
+
+        Returns:
+            Dictionary with values cast to int, bool, or tuple as needed.
+
+        Raises:
+            ConfigError: If a mandatory key is missing
+            or a value has the wrong type.
+        """
         mandatory: set[str] = {
                 'WIDTH', 'HEIGHT', 'ENTRY', 'EXIT', 'OUTPUT_FILE', 'PERFECT'
         }

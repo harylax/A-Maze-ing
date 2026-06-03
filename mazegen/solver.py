@@ -14,6 +14,20 @@ def solve(
         exit_: tuple[int, int],
         pattern_42: set[tuple[int, int]] | None = None
         ) -> list[tuple[int, int]]:
+    """Find the shortest path from entry to exit using BFS.
+
+    Args:
+        grid: 2D list of cell bitmasks (walls encoded as NESW bits).
+        width: Number of columns.
+        height: Number of rows.
+        entry: (x, y) starting cell.
+        exit_: (x, y) target cell.
+        pattern_42: Set of (x, y) isolated cells. Defaults to empty.
+
+    Returns:
+        List of (x, y) tuples from entry to exit.
+        Or an empty list if no path exists.
+    """
     if pattern_42 is None:
         pattern_42 = set()
     queue: deque[tuple[int, int]] = deque([entry])
@@ -47,6 +61,15 @@ def _reconstruct_path(
         came_from: dict[tuple[int, int], tuple[int, int] | None],
         exit_: tuple[int, int]
 ) -> list[tuple[int, int]]:
+    """Trace the BFS parent map back from exit to entry.
+
+    Args:
+        came_from: Dict mapping each cell to the cell it was reached from.
+        exit_: The target cell where reconstruction starts.
+
+    Returns:
+        Ordered list of (x, y) tuples from entry to exit.
+    """
     path: list[tuple[int, int]] = []
     current: tuple[int, int] | None = exit_
     while current is not None:
@@ -57,6 +80,14 @@ def _reconstruct_path(
 
 
 def path_to_directions(path: list[tuple[int, int]]) -> str:
+    """Convert a list of (x, y) positions into a compact direction string.
+
+    Args:
+        path: Ordered list of (x, y) tuples.
+
+    Returns:
+        String of N/E/S/W characters, e.g. 'NEESSWN'. Empty string if path < 2.
+    """
     if len(path) < 2:
         return ""
     result: list[str] = []

@@ -6,6 +6,7 @@ from sys import stderr
 
 
 def main() -> None:
+    """Run the full maze pipeline: load config, generate, save, and display."""
     config = MazeConfig()
     config.parse_config()
     maze: MazeGenerator = MazeGenerator(

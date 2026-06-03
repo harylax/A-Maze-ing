@@ -1,6 +1,6 @@
 import random
 import sys
-from .solver import solve
+from .solver import solve, path_to_directions
 from .pattern_42 import draw_42
 
 NORTH: int = 0b0001
@@ -12,6 +12,24 @@ sys.setrecursionlimit(100000)
 
 
 class MazeGenerator:
+    """Generate a 2D maze using DFS or Prim's algorithm.
+
+    Attributes:
+        width: Number of columns.
+        height: Number of rows.
+        entry: (x, y) start cell.
+        exit_: (x, y) end cell.
+        output_file: File path for saving the maze.
+        perfect: If True, no loops are added (pure spanning tree).
+        seed: Random seed. None means unpredictable.
+        algo: 'DFS' or 'prim'.
+        grid: 2D list of cell wall bitmasks.
+        visited: 2D list tracking which cells have been carved.
+        solution: Ordered list of (x, y) cells from entry to exit.
+        path: Directions in string from entry to exit.
+        pattern_42: Set of (x, y) cells reserved for the '42' pattern.
+        history: List of (current, neighbor) pairs recorded during carving.
+    """
     def __init__(
             self,
             width: int = 20,
@@ -35,6 +53,7 @@ class MazeGenerator:
         self.grid: list[list[int]] = []
         self.visited: list[list[bool]] = []
         self.solution: list[tuple[int, int]] = []
+        self.path_str: str = ""
         self.pattern_42: set[tuple[int, int]] = set()
         self.history: list[tuple[tuple[int, int], tuple[int, int]]] = []
 
@@ -45,6 +64,17 @@ class MazeGenerator:
         entry: tuple[int, int],
         exit_: tuple[int, int]
     ) -> None:
+        """Check that dimensions and entry/exit coordinates are valid.
+
+        Args:
+            width: Maze width.
+            height: Maze height.
+            entry: Entry coordinates.
+            exit_: Exit coordinates.
+
+        Raises:
+            ValueError: If any value is out of range or entry == exit.
+        """
         if width < 2:
             raise ValueError("WIDTH must be a positive value > 2.")
         if height < 2:
@@ -57,6 +87,11 @@ class MazeGenerator:
             raise ValueError("ENTRY and EXIT must be different.")
 
     def generate(self) -> None:
+        """Run the full maze generation pipeline.
+
+        Seeds the RNG, initialises the grid, places the 42 pattern,
+        carves passages, optionally adds loops, closes borders, and solves.
+        """
         if self.seed is not None:
             random.seed(self.seed)
         self._init_grid()
@@ -74,8 +109,13 @@ class MazeGenerator:
             self.entry,
             self.exit_
             )
+        self.path_str = path_to_directions(self.solution)
 
     def _add_loops(self) -> None:
+        """Remove randomly 10% of walls to create extra paths.
+
+        Create imperfect maze when the perfect configuration is set to False.
+        """
         cells: list[tuple[int, int]] = []
         for y in range(self.height):
             for x in range(self.width):
@@ -99,9 +139,20 @@ class MazeGenerator:
             count += 1
 
     def _is_valid_cell(self, x: int, y: int) -> bool:
+        """Return True if (x, y) is inside the maze bounds.
+
+        Args:
+            x: Column index.
+            y: Row index.
+        """
         return 0 <= x < self.width and 0 <= y < self.height
 
     def _validate_entry_exit(self) -> None:
+        """Raise an error if entry or exit falls inside the 42 pattern.
+
+        Raises:
+            ValueError: If entry or exit overlaps the pattern.
+        """
         if self.entry in self.pattern_42:
             raise ValueError(
                 "Invalid ENTRY coordinates, got "
@@ -114,6 +165,9 @@ class MazeGenerator:
                 )
 
     def _init_grid(self) -> None:
+        """Fill grid with all-walls cells and mark all cells as unvisited."""
+        self.grid = []
+        self.visited = []
         for _ in range(self.height):
             row_int: list[int] = []
             row_bool: list[bool] = []
@@ -126,12 +180,14 @@ class MazeGenerator:
             self.visited.append(row_bool)
 
     def _carve_passages(self) -> None:
+        """Dispatch to the correct carving algorithm (DFS or Prim)."""
         if self.algo.lower() == 'prim':
             self._prim()
         else:
             self._dfs_recursive(self.entry)
 
     def _close_all_borders(self) -> None:
+        """Set the outer border walls on all edge cells."""
         for y in range(self.height):
             for x in range(self.width):
                 if y == 0:
@@ -144,6 +200,7 @@ class MazeGenerator:
                     self.grid[y][x] |= EAST
 
     def _apply_pattern_42(self) -> None:
+        """Mark pattern cells as visited and wall off their neighbours."""
         directions: list[tuple[int, int, int]] = [
             (0, -1, SOUTH),
             (0, 1, NORTH),
@@ -160,10 +217,17 @@ class MazeGenerator:
                     continue
                 self.grid[ny][nx] |= wall_to_close
 
-    def _remove_wall(self,
-                     current: tuple[int, int],
-                     neighbor: tuple[int, int]
-                     ) -> None:
+    def _remove_wall(
+            self,
+            current: tuple[int, int],
+            neighbor: tuple[int, int]
+    ) -> None:
+        """Open the wall between two adjacent cells and record the step.
+
+        Args:
+            current: (x, y) of the first cell.
+            neighbor: (x, y) of the adjacent cell.
+        """
         x, y = current
         nx, ny = neighbor
         if x > nx:
@@ -181,6 +245,11 @@ class MazeGenerator:
         self.history.append((current, neighbor))
 
     def _dfs_recursive(self, current: tuple[int, int]) -> None:
+        """Carve passages via recursive depth-first search.
+
+        Args:
+            current: (x, y) of the cell being visited.
+        """
         x, y = current
         self.visited[y][x] = True
         directions: list[tuple[int, int]] = [
@@ -201,6 +270,14 @@ class MazeGenerator:
     def _get_neighbors(
             self, current: tuple[int, int]
             ) -> list[tuple[int, int]]:
+        """Return valid, non-pattern neighbours of a cell.
+
+        Args:
+            current: (x, y) of the source cell.
+
+        Returns:
+            List of (x, y) tuples for each reachable neighbour.
+        """
         directions: list[tuple[int, int]] = [
             (1, 0), (-1, 0), (0, 1), (0, -1)
         ]
@@ -216,6 +293,7 @@ class MazeGenerator:
         return neighbors
 
     def _prim(self) -> None:
+        """Carve passages using a randomised Prim's algorithm."""
         x, y = self.entry
         self.visited[y][x] = True
         walls: list[tuple[tuple[int, int], tuple[int, int]]] = []

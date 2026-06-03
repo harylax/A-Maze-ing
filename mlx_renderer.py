@@ -29,10 +29,25 @@ WALL_COLORS: list[int] = [
 
 
 class MazeRendererError(Exception):
+    """Raised when the MLX window or image cannot be created."""
     pass
 
 
 class MazeMLX:
+    """Render and animate the maze in a MiniLibX window.
+
+    Attributes:
+        maze: The MazeGenerator instance to render.
+        mlx: The Mlx wrapper object.
+        mlx_ptr: MLX instance pointer.
+        cell_size: Pixel size of each maze cell.
+        win_width: Window width in pixels.
+        win_height: Window height in pixels (includes status bar).
+        win_ptr: MLX window pointer.
+        img_ptr: MLX image pointer used for drawing.
+        show_solution: Whether the solution path is currently shown.
+        wall_color: Current ARGB color used for walls.
+    """
     def __init__(self, maze: MazeGenerator) -> None:
         self.maze: MazeGenerator = maze
         self.mlx: Mlx = Mlx()
@@ -56,6 +71,15 @@ class MazeMLX:
         self.wall_color: int = WALL_COLORS[0]
 
     def _validate_size(self, screen_w: int, screen_h: int) -> None:
+        """Raise an error if the maze is too large to fit on screen.
+
+        Args:
+            screen_w: Screen width in pixels.
+            screen_h: Screen height in pixels.
+
+        Raises:
+            MazeRendererError: If the maze exceeds the minimum cell size limit.
+        """
         min_cell_size: int = 16
         if (
             self.maze.width * min_cell_size > screen_w
@@ -68,6 +92,11 @@ class MazeMLX:
                 )
 
     def _cell_size(self) -> int:
+        """Compute the largest cell size that fits the maze on the screen.
+
+        Returns:
+            Cell size in pixels, at least 16.
+        """
         width = self.maze.width
         height = self.maze.height
         _, screen_w, screen_h = self.mlx.mlx_get_screen_size(
@@ -82,6 +111,11 @@ class MazeMLX:
         return cell_size
 
     def _create_image(self) -> Any:
+        """Create a new MLX image and store its data buffer and metadata.
+
+        Returns:
+            The MLX image pointer.
+        """
         img_ptr: Any = self.mlx.mlx_new_image(
             self.mlx_ptr, self.win_width, self.win_height
             )
@@ -90,10 +124,12 @@ class MazeMLX:
         return img_ptr
 
     def render(self) -> None:
+        """Start the maze generation animation from the beginning."""
         self._fill_background()
         self._set_animation(self._maze_animation)
 
     def show_path(self) -> None:
+        """Toggle the solution path animation on or off."""
         if not self._path_displayed:
             self._fill_background()
             self._draw_full_maze()
@@ -108,11 +144,23 @@ class MazeMLX:
             self._animation_index = 0
 
     def _set_animation(self, callback: Any) -> None:
+        """Register a loop hook function as the current animation callback.
+
+        Args:
+            callback: Function called on every MLX loop tick.
+        """
         self._animation_index = 0
         self.mlx.mlx_loop_hook(self.mlx_ptr, None, None)
         self.mlx.mlx_loop_hook(self.mlx_ptr, callback, None)
 
     def _put_pixel(self, x: int, y: int, color: int) -> None:
+        """Write a single pixel to the image buffer.
+
+        Args:
+            x: Horizontal position in pixels.
+            y: Vertical position in pixels.
+            color: ARGB color as an integer.
+        """
         if not (0 <= x < self.win_width and 0 <= y < self.win_height):
             return
         i = self.bpp // 8
@@ -121,16 +169,34 @@ class MazeMLX:
         self.data[offset:offset + i] = color_bytes
 
     def _fill_background(self) -> None:
+        """Fill the entire image with the background color."""
         for y in range(self.win_height):
             for x in range(self.win_width):
                 self._put_pixel(x, y, BG_COLOR)
 
     def _draw_rect(self, x: int, y: int, w: int, h: int, color: int) -> None:
+        """Draw a filled rectangle on the image.
+
+        Args:
+            x: Left edge in pixels.
+            y: Top edge in pixels.
+            w: Width in pixels.
+            h: Height in pixels.
+            color: ARGB fill color.
+        """
         for j in range(y, y + h):
             for i in range(x, x + w):
                 self._put_pixel(i, j, color)
 
     def _draw_cell(self, margin: int, cx: int, cy: int, color: int) -> None:
+        """Draw a cell interior with an optional inset margin.
+
+        Args:
+            margin: Pixel inset on each side.
+            cx: Cell column index.
+            cy: Cell row index.
+            color: ARGB fill color.
+        """
         px = cx * self.cell_size + margin
         py = cy * self.cell_size + margin
         self._draw_rect(
@@ -141,6 +207,7 @@ class MazeMLX:
             )
 
     def _draw_full_maze(self) -> None:
+        """Redraw every cell, wall, pattern, and entry/exit marker at once."""
         for y in range(self.maze.height):
             for x in range(self.maze.width):
                 self._draw_cell(1, x, y, CELL_COLOR)
@@ -153,6 +220,7 @@ class MazeMLX:
         self._interactive_str()
 
     def _show_path_without_animation(self) -> None:
+        """Draw the maze with the solution path, skipping the animation."""
         for y in range(self.maze.height):
             for x in range(self.maze.width):
                 self._draw_cell(1, x, y, CELL_COLOR)
@@ -168,6 +236,11 @@ class MazeMLX:
         self._interactive_str()
 
     def _maze_animation(self, param: Any) -> None:
+        """Loop hook that draws one generation step per tick.
+
+        Args:
+            param: Unused MLX hook parameter.
+        """
         if self._animation_index > len(self.maze.history) - 1:
             self._draw_42_pattern()
             self._draw_entry_exit()
@@ -191,6 +264,11 @@ class MazeMLX:
         self._animation_index += 1
 
     def _path_animation(self, param: Any) -> None:
+        """Loop hook that draws one solution step per tick.
+
+        Args:
+            param: Unused MLX hook parameter.
+        """
         if self._animation_index > len(self.maze.solution) - 1:
             self._draw_entry_exit()
             self.mlx.mlx_put_image_to_window(
@@ -212,6 +290,7 @@ class MazeMLX:
         self._path_displayed = True
 
     def _interactive_str(self) -> None:
+        """Print the keyboard shortcut hint at the bottom of the window."""
         if self.win_width < 600:
             self.mlx.mlx_string_put(
                 self.mlx_ptr,
@@ -242,10 +321,18 @@ class MazeMLX:
                 )
 
     def _draw_42_pattern(self) -> None:
+        """Highlight all cells that belong to the '42' pattern."""
         for px, py in self.maze.pattern_42:
             self._draw_cell(1, px, py, P42_COLOR)
 
     def _draw_walls(self, cx: int, cy: int, color: int) -> None:
+        """Draw the walls of a single cell based on its bitmask.
+
+        Args:
+            cx: Cell column index.
+            cy: Cell row index.
+            color: ARGB wall color.
+        """
         cell: int = self.maze.grid[cy][cx]
         cs = self.cell_size
         x = cx * cs
@@ -261,12 +348,22 @@ class MazeMLX:
             self._draw_rect(x, y, wall, cs, color)
 
     def _draw_entry_exit(self) -> None:
+        """Draw the entry and exit cells with their dedicated colors."""
         sx, sy = self.maze.entry
         ex, ey = self.maze.exit_
         self._draw_cell(2, sx, sy, ENTRY_COLOR)
         self._draw_cell(2, ex, ey, EXIT_COLOR)
 
     def _key_hook(self, keycode: int, param: Any) -> int:
+        """Handle keyboard input from the MLX window.
+
+        Args:
+            keycode: The key code received from MLX.
+            param: Unused MLX hook parameter.
+
+        Returns:
+            0 to signal success to MLX.
+        """
         if keycode == 65307:
             self.mlx.mlx_loop_exit(self.mlx_ptr)
         elif keycode in (ord('r'), ord('R')):
@@ -299,6 +396,7 @@ class MazeMLX:
         return 0
 
     def _regenerate(self) -> None:
+        """Regenerate the maze with an incremented seed."""
         self.maze = MazeGenerator(
             self.maze.width, self.maze.height,
             self.maze.entry, self.maze.exit_,
@@ -315,5 +413,6 @@ class MazeMLX:
         self.render()
 
     def run(self) -> None:
+        """Start the MLX event loop and listen for key events."""
         self.mlx.mlx_key_hook(self.win_ptr, self._key_hook, None)
         self.mlx.mlx_loop(self.mlx_ptr)

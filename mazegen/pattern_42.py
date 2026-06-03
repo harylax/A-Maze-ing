@@ -2,6 +2,16 @@ import sys
 
 
 def draw_42(width: int, height: int) -> set[tuple[int, int]]:
+    """Compute the set of cells that form the '42' pattern.
+
+    Args:
+        width: Maze width in cells.
+        height: Maze height in cells.
+
+    Returns:
+        Set of (x, y) tuples occupied by the pattern.
+        An empty set if the maze is too small, and print an error message.
+    """
     if width < 9 or height < 7:
         print("Maze size is too small for the 42 pattern", file=sys.stderr)
         return set()
