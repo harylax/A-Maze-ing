@@ -1,5 +1,5 @@
-from .generator import MazeGenerator, MazeGenError
-from .solver import solve
+from .generator import MazeGenerator
+from .solver import solve, path_to_directions
 
 __version__ = "1.0.0"
-__all__ = ['MazeGenerator', 'MazeGenError', 'solve']
+__all__ = ['MazeGenerator', 'path_to_directions', 'solve']

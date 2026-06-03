@@ -1,7 +1,6 @@
 import random
 import sys
 from .solver import solve
-from heapq import heappush, heappop
 from .pattern_42 import draw_42
 
 NORTH: int = 0b0001
@@ -219,13 +218,14 @@ class MazeGenerator:
     def _prim(self) -> None:
         x, y = self.entry
         self.visited[y][x] = True
-        walls: list[tuple[float, tuple[int, int], tuple[int, int]]] = []
+        walls: list[tuple[tuple[int, int], tuple[int, int]]] = []
         for (nx, ny) in self._get_neighbors((x, y)):
             if (nx, ny) in self.pattern_42:
                 continue
-            heappush(walls, (random.random(), (x, y), (nx, ny)))
+            walls.append(((x, y), (nx, ny)))
         while walls:
-            _, current, neighbor = heappop(walls)
+            index: int = random.randrange(len(walls))
+            current, neighbor = walls.pop(index)
             nx, ny = neighbor
             if self.visited[ny][nx]:
                 continue
@@ -236,4 +236,4 @@ class MazeGenerator:
                     continue
                 if (nnx, nny) in self.pattern_42:
                     continue
-                heappush(walls, (random.random(), (nx, ny), (nnx, nny)))
+                walls.append((neighbor, (nnx, nny)))
