@@ -100,7 +100,11 @@ class MazeConfig:
         raw: dict[str, str] = {}
         lines: list[str] = content.splitlines()
         for line in lines:
-            if not line or '#' in line:
+            if '#' in line:
+                i: int = line.index('#')
+                line = line[:i]
+            line = line.strip()
+            if not line:
                 continue
             if '=' not in line:
                 raise ConfigError(
@@ -108,12 +112,16 @@ class MazeConfig:
                     "'KEY=VALUE' pair per line."
                     )
             key, _, value = line.partition('=')
+            key = key.strip().upper()
+            value = value.strip()
             if not key or not value:
                 raise ConfigError(
                     "The configuration file must contain one "
                     "'KEY=VALUE' pair per line."
                 )
-            raw[key.strip().upper()] = value.strip()
+            if key in raw:
+                raise ConfigError(f"Got a duplicate key: {key}")
+            raw[key] = value
         return raw
 
     @staticmethod

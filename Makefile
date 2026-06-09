@@ -1,4 +1,4 @@
-.PHONY: install run build-mazegen clean fclean lint lint-strict
+.PHONY: install run debug build-mazegen clean fclean lint lint-strict
 
 venv/.installed: requirements.txt
 	python3 -m venv venv

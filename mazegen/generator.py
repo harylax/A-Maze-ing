@@ -172,10 +172,8 @@ class MazeGenerator:
             row_int: list[int] = []
             row_bool: list[bool] = []
             for _ in range(self.width):
-                walls: int = 0b1111
-                visited: bool = False
-                row_int.append(walls)
-                row_bool.append(visited)
+                row_int.append(0b1111)
+                row_bool.append(False)
             self.grid.append(row_int)
             self.visited.append(row_bool)
 
